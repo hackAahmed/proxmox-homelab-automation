@@ -29,7 +29,7 @@ print_error() { echo -e "\033[31m[ERROR]\033[0m $1"; }
 cleanup() {
     if [ -n "$WORK_DIR" ] && [ -d "$WORK_DIR" ]; then
         print_info "Cleaning up temporary files..."
-        rm -rf "$WORK_DIR"
+        rm -rf "${WORK_DIR:?}"
     fi
 }
 
@@ -53,6 +53,7 @@ FILES_TO_DOWNLOAD=(
     "scripts/deploy-stack.sh"
     "scripts/helper-menu.sh"
     "scripts/fail2ban-manager.sh"
+    "scripts/encrypt-env.sh"
     "stacks.yaml"
 )
 

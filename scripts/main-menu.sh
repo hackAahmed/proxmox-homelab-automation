@@ -27,6 +27,7 @@ while true; do
     echo "   8) Deploy [development]Stack (LXC 151)"
     echo
     echo "-----------------------------------------------"
+    echo "   e) Encrypt .env files from containers..."
     echo "   h) Run Proxmox Helper Scripts..."
     echo "-----------------------------------------------"
     echo "   q) Quit"
@@ -42,6 +43,7 @@ while true; do
         6) bash "$WORK_DIR/scripts/deploy-stack.sh" "gameservers" ; break ;;
         7) bash "$WORK_DIR/scripts/deploy-stack.sh" "backup" ; break ;;
         8) bash "$WORK_DIR/scripts/deploy-stack.sh" "development" ; break ;;
+        e|E) bash "$WORK_DIR/scripts/encrypt-env.sh" ; break ;;
         h) bash "$WORK_DIR/scripts/helper-menu.sh" ; break ;;
         q|Q) echo "Exiting."; exit 0 ;;
         *) echo "Invalid choice. Please try again." ; sleep 2 ;;

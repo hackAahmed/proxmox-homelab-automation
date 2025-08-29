@@ -90,21 +90,20 @@ pct create "$CT_ID" "$LATEST_TEMPLATE" \
     --unprivileged 1 \
     --rootfs ${STORAGE_POOL}:$CT_DISK_GB
 
-print_info "Mounting datapool..."
-pct set "$CT_ID" -mp0 /datapool,mp=/datapool,acl=1
+# Skip datapool mount for development stack
+if [ "$STACK_NAME" != "development" ]; then
+    print_info "Mounting datapool..."
+    pct set "$CT_ID" -mp0 /datapool,mp=/datapool,acl=1
+fi
 
 print_info "Starting container..."
 pct start "$CT_ID"
 
 print_info "Waiting for container to respond..."
-for i in $(seq 1 20); do
-    if pct exec "$CT_ID" -- uname -a >/dev/null 2>&1; then
-        print_success "Container is up."
-        break
-    fi
-    sleep 3
-    [ $i -eq 20 ] && print_error "Timeout waiting for container" && exit 1
+while ! pct exec "$CT_ID" -- test -f /sbin/init >/dev/null 2>&1; do
+    sleep 2
 done
+print_success "Container is up."
 
 print_info "Provisioning inside container (stack: $STACK_NAME)..."
 
@@ -130,6 +129,7 @@ EOFPBS
     
     # Update and install PBS
     apt update
+    apt upgrade -y
     apt install -y proxmox-backup-server
     
     # Configure systemd autologin for tty1
@@ -144,50 +144,43 @@ EOFLOGIN
     systemctl disable ssh || true
     apt remove -y openssh-server || true
     
-elif [ \"\$STACK_NAME\" = 'development' ]; then
-    # Development: NO Docker; only what is needed for Dev apps & autologin.
-    apk update
-    apk add --no-cache util-linux nodejs npm git curl
-    npm config set fund false >/dev/null 2>&1 || true
-    npm config set update-notifier false >/dev/null 2>&1 || true
 else
-    # Other stacks: Alpine + Docker runtime
+    # Common Alpine setup
     apk update
-    apk add --no-cache docker docker-cli-compose util-linux
+    apk upgrade
     
-    # Configure Docker daemon with metrics
-    mkdir -p /etc/docker
-    cat > /etc/docker/daemon.json <<EOFDOCKER
+    if [ \"\$STACK_NAME\" = 'development' ]; then
+        # Development: NO Docker; only AI CLI tools
+        apk add --no-cache util-linux nodejs npm git curl python3 py3-pip bash nano vim htop openssh-client ca-certificates
+        npm config set fund false >/dev/null 2>&1 || true
+        npm config set update-notifier false >/dev/null 2>&1 || true
+        npm install -g @anthropic-ai/claude-code
+        npm install -g @google/gemini-cli
+    else
+        # Other stacks: Docker runtime
+        apk add --no-cache docker docker-cli-compose util-linux
+        
+        # Configure Docker daemon with metrics
+        mkdir -p /etc/docker
+        cat > /etc/docker/daemon.json <<EOFDOCKER
 {
     \"metrics-addr\": \"0.0.0.0:9323\",
     \"experimental\": true
 }
 EOFDOCKER
-    
-    # Add docker to boot runlevel and start
-    rc-update add docker boot
-    service docker start || rc-service docker start || true
+        
+        # Add docker to boot runlevel and start
+        rc-update add docker boot
+        service docker start || rc-service docker start || true
+    fi
 fi
 
-# Common setup for all containers
+# Common setup for all containers  
 if [ \"\$STACK_NAME\" != 'backup' ]; then
-    # Alpine-specific autologin setup
-    mkdir -p /etc/local.d
-    cat > /etc/local.d/autologin.start <<'EOFAUTO'
-#!/bin/sh
-# Configure autologin for tty1
-if [ -f /etc/inittab ]; then
-    if grep -q '^tty1::' /etc/inittab; then
-        sed -i 's|^tty1::.*|tty1::respawn:/sbin/agetty --autologin root --noclear tty1 38400 linux|' /etc/inittab
-    else
-        echo 'tty1::respawn:/sbin/agetty --autologin root --noclear tty1 38400 linux' >> /etc/inittab
-    fi
+    # Alpine autologin - direct approach
+    sed -i 's|^tty1::|#&|' /etc/inittab 2>/dev/null || true
+    echo 'tty1::respawn:/sbin/agetty --autologin root --noclear tty1 38400 linux' >> /etc/inittab
     kill -HUP 1 2>/dev/null || true
-fi
-EOFAUTO
-    chmod +x /etc/local.d/autologin.start
-    rc-update add local default
-    /etc/local.d/autologin.start || true
 fi
 
 # Remove root password (allow passwordless login)
