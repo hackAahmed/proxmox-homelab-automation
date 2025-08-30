@@ -392,8 +392,8 @@ configure_pbs() {
     fi
     
     # --- Idempotent PBS Admin & Prometheus User Setup ---
-    local pbs_admin_pass_path="/etc/pbs-admin.pass"
-    local pbs_admin_hash_path="/etc/pbs-admin.hash"
+    local pbs_admin_pass_path="/root/.pbs-admin.pass"
+    local pbs_admin_hash_path="/root/.pbs-admin.hash"
     local PBS_ADMIN_PASS=""
     
     # Check if we need to prompt for password (first run or password change requested)
@@ -466,7 +466,7 @@ configure_pbs() {
     username: '$prom_user'
     password: '$final_prom_pass'
 EOF
-        pct push "$monitoring_ct_id" "$pbs_job_config_temp" "/etc/prometheus/pbs_job.yml"
+        pct push "$monitoring_ct_id" "$pbs_job_config_temp" "/datapool/config/prometheus/pbs_job.yml"
         rm "$pbs_job_config_temp"
 
         print_info "  -> Restarting Prometheus to apply PBS configuration..."
@@ -542,16 +542,18 @@ configure_pve_backup_job() {
     
     # Check if storage exists and needs update
     if pvesm status --storage "$pbs_storage_name" >/dev/null 2>&1; then
-        print_info "  -> PBS storage '$pbs_storage_name' exists. Checking if password update needed..."
+        print_info "  -> PBS storage '$pbs_storage_name' exists. Checking if update needed..."
         
-        # Test current storage connection - if it fails, password likely changed
+        # Test current storage connection - if it fails, password or fingerprint changed
         if ! pvesm list "$pbs_storage_name" >/dev/null 2>&1; then
-            print_info "  -> Storage connection test failed. Updating PBS storage password..."
-            pvesm set "$pbs_storage_name" --password "$pbs_admin_pass" || {
-                print_error "Failed to update PBS storage password."
+            print_info "  -> Storage connection test failed. Updating PBS storage configuration..."
+            pvesm set "$pbs_storage_name" \
+                --password "$pbs_admin_pass" \
+                --fingerprint "$pbs_fingerprint" || {
+                print_error "Failed to update PBS storage configuration."
                 exit 1
             }
-            print_success "  -> PBS storage password updated successfully."
+            print_success "  -> PBS storage configuration updated successfully."
         else
             print_success "  -> PBS storage connection is working."
         fi
