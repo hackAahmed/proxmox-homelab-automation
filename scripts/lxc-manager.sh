@@ -112,25 +112,19 @@ set -e
 STACK_NAME='$STACK_NAME'
 
 if [ \"\$STACK_NAME\" = 'backup' ]; then
-    # PBS: Debian-based setup
-    apt update
+    # PBS: Debian-based setup - minimal dependencies
+    apt-get update >/dev/null
+    apt-get install -y curl gnupg2 >/dev/null
     
-    # Add Proxmox repositories for PBS
-    wget --https-only -O /usr/share/keyrings/proxmox-archive-keyring.gpg https://enterprise.proxmox.com/debian/proxmox-archive-keyring-trixie.gpg
+    # Add Proxmox repository key and source (bookworm for Debian 12)
+    curl -fsSL https://enterprise.proxmox.com/debian/proxmox-release-bookworm.gpg -o /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
+    echo 'deb http://download.proxmox.com/debian/pbs bookworm pbs-no-subscription' >> /etc/apt/sources.list
     
-    # Add PBS repository (no-subscription)
-    cat > /etc/apt/sources.list.d/proxmox.sources << 'EOFPBS'
-Types: deb
-URIs: http://download.proxmox.com/debian/pbs
-Suites: trixie
-Components: pbs-no-subscription
-Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
-EOFPBS
-    
-    # Update and install PBS
-    apt update
-    apt upgrade -y
-    apt install -y proxmox-backup-server
+    # Install PBS with non-interactive mode
+    apt-get update >/dev/null
+    export DEBIAN_FRONTEND=noninteractive
+    export IFUPDOWN2_NO_IFRELOAD=1
+    apt-get install -y proxmox-backup-server
     
     # Configure systemd autologin for tty1
     mkdir -p /etc/systemd/system/getty@tty1.service.d
@@ -140,9 +134,13 @@ ExecStart=
 ExecStart=-/sbin/agetty --autologin root --noclear %I \$TERM
 EOFLOGIN
     
-    # Disable SSH for security
+    # Disable SSH for security (don't remove to prevent dependency issues)
     systemctl disable ssh || true
-    apt remove -y openssh-server || true
+    systemctl stop ssh || true
+    
+    # Cleanup
+    apt-get -y autoremove >/dev/null
+    apt-get -y autoclean >/dev/null
     
 else
     # Common Alpine setup

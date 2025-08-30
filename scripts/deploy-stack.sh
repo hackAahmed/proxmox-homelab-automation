@@ -30,6 +30,33 @@ prompt_env_passphrase() {
     done
 }
 
+prompt_pbs_admin_password() {
+    local pass confirm
+    while true; do
+        echo -n "Enter PBS admin password for root@pam (web interface): " >&2
+        read -s pass
+        echo >&2
+        if [ -z "$pass" ]; then
+            print_warning "Password cannot be empty."
+            continue
+        fi
+        if [ ${#pass} -lt 8 ]; then
+            print_warning "Password must be at least 8 characters long."
+            continue
+        fi
+        
+        echo -n "Confirm PBS admin password: " >&2
+        read -s confirm
+        echo >&2
+        if [ "$pass" = "$confirm" ]; then
+            printf '%s' "$pass"  # Secure output without newline
+            return 0
+        else
+            print_warning "Passwords do not match. Please try again."
+        fi
+    done
+}
+
 decrypt_env_for_deploy() {
     # Download and decrypt .env.enc for deployment - fail fast, no retries
     local stack="$1"
@@ -366,29 +393,44 @@ configure_pbs() {
     
     # --- Idempotent PBS Admin & Prometheus User Setup ---
     local pbs_admin_pass_path="/etc/pbs-admin.pass"
+    local pbs_admin_hash_path="/etc/pbs-admin.hash"
+    local PBS_ADMIN_PASS=""
     
-    # Check if PBS admin password is stored
+    # Check if we need to prompt for password (first run or password change requested)
+    local need_password_setup=false
     if ! pct exec "$CT_ID" -- test -f "$pbs_admin_pass_path"; then
-        print_info "  -> PBS admin password not found. Setting up root@pam password..."
-        local PBS_ADMIN_PASS
-        while true;
-        do
-            echo -n "Enter PBS admin (root@pam) password: " >&2
-            read -s PBS_ADMIN_PASS
-            echo >&2
-            if [ ${#PBS_ADMIN_PASS} -ge 8 ]; then
-                break
-            else
-                print_warning "Password must be at least 8 characters. Try again."
-            fi
-        done
+        print_info "  -> PBS admin password not found. Interactive setup required."
+        need_password_setup=true
+    else
+        # Ask user if they want to change existing password
+        print_info "  -> PBS admin password found. Do you want to change it? [y/N]"
+        read -r change_password
+        if [[ "$change_password" =~ ^[Yy]$ ]]; then
+            need_password_setup=true
+            print_info "  -> Password change requested."
+        fi
+    fi
+    
+    if [ "$need_password_setup" = true ]; then
+        print_info "  -> Prompting for PBS admin password..."
+        PBS_ADMIN_PASS=$(prompt_pbs_admin_password)
+        
+        # Create hash of the new password for idempotent checks
+        local new_hash=$(printf '%s' "$PBS_ADMIN_PASS" | sha256sum | cut -d' ' -f1)
         
         # Set PBS admin password and store it securely
-        printf '%s' "$PBS_ADMIN_PASS" | pct exec "$CT_ID" -- proxmox-backup-manager user passwd root@pam 2>/dev/null
+        print_info "  -> Setting PBS admin password..."
+        pct exec "$CT_ID" -- proxmox-backup-manager user update root@pam --password "$PBS_ADMIN_PASS"
+        
+        # Store password and hash securely
         printf '%s' "$PBS_ADMIN_PASS" | pct exec "$CT_ID" -- sh -c "cat > $pbs_admin_pass_path && chmod 600 $pbs_admin_pass_path"
-        print_success "  -> PBS admin password set and stored securely."
+        printf '%s' "$PBS_ADMIN_PASS" | pct exec "$CT_ID" -- sh -c "cat > /root/.pbs-admin-password && chmod 600 /root/.pbs-admin-password"
+        printf '%s' "$new_hash" | pct exec "$CT_ID" -- sh -c "cat > $pbs_admin_hash_path && chmod 600 $pbs_admin_hash_path"
+        
+        print_success "  -> PBS admin password set and stored securely (root@pam)."
     else
-        print_info "  -> PBS admin password found. Using stored credentials."
+        print_info "  -> Using existing PBS admin password."
+        PBS_ADMIN_PASS=$(pct exec "$CT_ID" -- cat "$pbs_admin_pass_path")
     fi
     
     # Create Prometheus user if needed
@@ -399,9 +441,10 @@ configure_pbs() {
         pct exec "$CT_ID" -- proxmox-backup-manager acl update /datastore/"$datastore_name" --user "$prom_user" --role DatastoreAudit 2>/dev/null || true
 
         local prom_pass=$(openssl rand -base64 16)
-        printf '%s' "$prom_pass" | pct exec "$CT_ID" -- proxmox-backup-manager user passwd "$prom_user"
+        pct exec "$CT_ID" -- proxmox-backup-manager user update "$prom_user" --password "$prom_pass"
         printf '%s' "$prom_pass" | pct exec "$CT_ID" -- sh -c "cat > $prom_pass_path && chmod 600 $prom_pass_path"
-        print_success "  -> Prometheus user '$prom_user' created and password stored securely in LXC."
+        printf '%s' "$prom_pass" | pct exec "$CT_ID" -- sh -c "cat > /root/.prometheus-password && chmod 600 /root/.prometheus-password"
+        print_success "  -> Prometheus user '$prom_user' created and password stored securely."
     else
         print_info "  -> Prometheus user credentials found. Skipping creation."
     fi
@@ -434,37 +477,43 @@ EOF
     fi
     
     print_info "  -> Creating PBS datastore '$datastore_name'..."
-    # Wait for PBS to be fully ready for datastore operations
-    local datastore_attempts=10
-    local ds_attempt=1
-    while [ $ds_attempt -le $datastore_attempts ]; do
-        if pct exec "$CT_ID" -- proxmox-backup-manager datastore create "$datastore_name" /datapool/backups 2>/dev/null; then
-            print_success "  -> PBS datastore created successfully."
-            break
-        elif pct exec "$CT_ID" -- proxmox-backup-manager datastore list 2>/dev/null | grep -q "$datastore_name"; then
-            print_success "  -> PBS datastore already exists."
-            break
-        else
-            print_info "  -> Attempt $ds_attempt/$datastore_attempts: Waiting for PBS to be ready for datastore operations..."
-            sleep 3
-            ds_attempt=$((ds_attempt + 1))
-        fi
-    done
     
-    if [ $ds_attempt -gt $datastore_attempts ]; then
-        print_warning "  -> Could not create or verify datastore after $datastore_attempts attempts."
+    # Check if datastore already exists first (idempotent)
+    if pct exec "$CT_ID" -- proxmox-backup-manager datastore list 2>/dev/null | grep -q "$datastore_name"; then
+        print_success "  -> PBS datastore already exists."
+    else
+        # Only clean directory if datastore doesn't exist and directory looks uninitialized
+        if ! pct exec "$CT_ID" -- test -f /datapool/backups/.gc-status 2>/dev/null; then
+            print_info "  -> Cleaning uninitialized datastore directory..."
+            pct exec "$CT_ID" -- rm -rf /datapool/backups/* /datapool/backups/.* 2>/dev/null || true
+        fi
+        
+        # Wait for PBS to be fully ready for datastore operations  
+        local datastore_attempts=10
+        local ds_attempt=1
+        while [ $ds_attempt -le $datastore_attempts ]; do
+            if pct exec "$CT_ID" -- proxmox-backup-manager datastore create "$datastore_name" /datapool/backups 2>/dev/null; then
+                print_success "  -> PBS datastore created successfully."
+                break
+            else
+                print_info "  -> Attempt $ds_attempt/$datastore_attempts: Waiting for PBS to be ready for datastore operations..."
+                sleep 3
+                ds_attempt=$((ds_attempt + 1))
+            fi
+        done
+        
+        if [ $ds_attempt -gt $datastore_attempts ]; then
+            print_warning "  -> Could not create datastore after $datastore_attempts attempts."
+        fi
     fi
     
-    print_info "  -> Setting up garbage collection schedule..."
-    pct exec "$CT_ID" -- proxmox-backup-manager gc-schedule update "$datastore_name" --schedule "$gc_schedule" 2>/dev/null || true
-    
     print_info "  -> Creating prune job for backup retention (GFS: 5-4-2)..."
-    pct exec "$CT_ID" -- proxmox-backup-manager prune-job create "$datastore_name" \
-        --schedule "$prune_schedule" --keep-daily 5 --keep-weekly 4 --keep-monthly 2 2>/dev/null || true
+    pct exec "$CT_ID" -- proxmox-backup-manager prune-job create daily-prune \
+        --schedule "$prune_schedule" --store "$datastore_name" --keep-daily 5 --keep-weekly 4 --keep-monthly 2 2>/dev/null || true
     
     print_info "  -> Setting up verification job..."
-    pct exec "$CT_ID" -- proxmox-backup-manager verification-job create "$datastore_name" \
-        --schedule "$verify_schedule" 2>/dev/null || true
+    pct exec "$CT_ID" -- proxmox-backup-manager verify-job create daily-verify \
+        --store "$datastore_name" --schedule "$verify_schedule" 2>/dev/null || true
     
     local pbs_ip=$(yq -r ".network.ip_base" "$WORK_DIR/stacks.yaml").$(yq -r ".stacks.backup.ip_octet" "$WORK_DIR/stacks.yaml")
     print_success "PBS configuration completed. Access web interface at: https://${pbs_ip}:8007"
@@ -476,22 +525,53 @@ EOF
 
 configure_pve_backup_job() {
     print_info "(4.4/5) Configuring Proxmox VE backup job..."
-    local pbs_storage_name="lxc-backup-01" # This should match the storage added in PVE
+    local pbs_storage_name="lxc-backup-01"
     local job_config_file="/etc/pve/jobs.cfg"
     local job_id="vzdump-automated-pbs"
+    local pbs_ip=$(yq -r ".network.ip_base" "$WORK_DIR/stacks.yaml").$(yq -r ".stacks.backup.ip_octet" "$WORK_DIR/stacks.yaml")
+    local pbs_datastore=$(yq -r ".stacks.backup.pbs_datastore_name" "$WORK_DIR/stacks.yaml")
 
-    # First, ensure the PBS storage is added to PVE.
-    # This part is complex to automate securely without API tokens, so we guide the user.
-    if ! pvesm status --storage "$pbs_storage_name" >/dev/null 2>&1; then
-        print_warning "Storage '$pbs_storage_name' not found in Proxmox VE."
-        print_warning "Please add it manually before proceeding: Datacenter -> Storage -> Add -> Proxmox Backup Server"
-        local pbs_ip=$(yq -r ".network.ip_base" "$WORK_DIR/stacks.yaml").$(yq -r ".stacks.backup.ip_octet" "$WORK_DIR/stacks.yaml")
-        local pbs_datastore=$(yq -r ".stacks.backup.pbs_datastore_name" "$WORK_DIR/stacks.yaml")
-        print_info "    ID: $pbs_storage_name"
-        print_info "    Server: $pbs_ip"
-        print_info "    Username: root@pam"
-        print_info "    Datastore: $pbs_datastore"
-        read -p "Press [Enter] to continue after adding the storage..."
+    # Add or update PBS storage to PVE automatically
+    local pbs_admin_pass=$(pct exec "$CT_ID" -- cat /etc/pbs-admin.pass)
+    local pbs_fingerprint=$(echo | openssl s_client -connect "$pbs_ip:8007" 2>/dev/null | openssl x509 -fingerprint -noout -sha256 | cut -d= -f2)
+    
+    if [ -z "$pbs_fingerprint" ]; then
+        print_error "Could not get PBS certificate fingerprint. PBS may not be ready."
+        exit 1
+    fi
+    
+    # Check if storage exists and needs update
+    if pvesm status --storage "$pbs_storage_name" >/dev/null 2>&1; then
+        print_info "  -> PBS storage '$pbs_storage_name' exists. Checking if password update needed..."
+        
+        # Test current storage connection - if it fails, password likely changed
+        if ! pvesm list "$pbs_storage_name" >/dev/null 2>&1; then
+            print_info "  -> Storage connection test failed. Updating PBS storage password..."
+            pvesm set "$pbs_storage_name" --password "$pbs_admin_pass" || {
+                print_error "Failed to update PBS storage password."
+                exit 1
+            }
+            print_success "  -> PBS storage password updated successfully."
+        else
+            print_success "  -> PBS storage connection is working."
+        fi
+    else
+        print_info "  -> Adding PBS storage '$pbs_storage_name' to Proxmox VE..."
+        
+        # Add PBS storage using pvesm
+        pvesm add pbs "$pbs_storage_name" \
+            --server "$pbs_ip" \
+            --datastore "$pbs_datastore" \
+            --username root@pam \
+            --password "$pbs_admin_pass" \
+            --content backup \
+            --port 8007 \
+            --fingerprint "$pbs_fingerprint" 2>/dev/null || {
+            print_error "Failed to add PBS storage to Proxmox VE."
+            exit 1
+        }
+        
+        print_success "  -> PBS storage '$pbs_storage_name' added to Proxmox VE."
     fi
 
     # Check if the job already exists
