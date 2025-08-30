@@ -532,7 +532,7 @@ configure_pve_backup_job() {
     local pbs_datastore=$(yq -r ".stacks.backup.pbs_datastore_name" "$WORK_DIR/stacks.yaml")
 
     # Add or update PBS storage to PVE automatically
-    local pbs_admin_pass=$(pct exec "$CT_ID" -- cat /etc/pbs-admin.pass)
+    local pbs_admin_pass=$(pct exec "$CT_ID" -- cat /root/.pbs-admin.pass)
     local pbs_fingerprint=$(echo | openssl s_client -connect "$pbs_ip:8007" 2>/dev/null | openssl x509 -fingerprint -noout -sha256 | cut -d= -f2)
     
     if [ -z "$pbs_fingerprint" ]; then
