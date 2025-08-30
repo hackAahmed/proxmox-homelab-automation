@@ -40,7 +40,7 @@ while true; do
         3) bash "$WORK_DIR/scripts/deploy-stack.sh" "files" ; break ;;
         4) bash "$WORK_DIR/scripts/deploy-stack.sh" "webtools" ; break ;;
         5) bash "$WORK_DIR/scripts/deploy-stack.sh" "monitoring" ; break ;;
-        6) bash "$WORK_DIR/scripts/deploy-stack.sh" "gameservers" ; break ;;
+        6) bash "$WORK_DIR/scripts/gaming-menu.sh" ; break ;;
         7) bash "$WORK_DIR/scripts/deploy-stack.sh" "backup" ; break ;;
         8) bash "$WORK_DIR/scripts/deploy-stack.sh" "development" ; break ;;
         e|E) bash "$WORK_DIR/scripts/encrypt-env.sh" ; break ;;
