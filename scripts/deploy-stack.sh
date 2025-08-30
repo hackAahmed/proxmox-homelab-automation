@@ -561,17 +561,17 @@ configure_pve_backup_job() {
         print_info "  -> Adding PBS storage '$pbs_storage_name' to Proxmox VE..."
         
         # Add PBS storage using pvesm
-        pvesm add pbs "$pbs_storage_name" \
+        if ! pvesm add pbs "$pbs_storage_name" \
             --server "$pbs_ip" \
             --datastore "$pbs_datastore" \
             --username root@pam \
             --password "$pbs_admin_pass" \
             --content backup \
             --port 8007 \
-            --fingerprint "$pbs_fingerprint" 2>/dev/null || {
+            --fingerprint "$pbs_fingerprint" 2>&1; then
             print_error "Failed to add PBS storage to Proxmox VE."
             exit 1
-        }
+        fi
         
         print_success "  -> PBS storage '$pbs_storage_name' added to Proxmox VE."
     fi
