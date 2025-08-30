@@ -24,7 +24,7 @@ while true; do
     echo "   5) Deploy [monitoring] Stack (LXC 104)"
     echo "   6) Deploy [gameservers] Stack (LXC 105)"
     echo "   7) Deploy [backup]     Stack (LXC 150)"
-    echo "   8) Deploy [development]Stack (LXC 151)"
+    echo "   8) Deploy [development] Stack (LXC 151)"
     echo
     echo "-----------------------------------------------"
     echo "   e) Encrypt .env files from containers..."

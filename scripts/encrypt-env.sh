@@ -6,48 +6,9 @@
 set -e
 
 WORK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
-STACKS_FILE="$WORK_DIR/stacks.yaml"
 
-# --- Helper Functions ---
-print_info() { echo -e "\033[36m[INFO]\033[0m $1"; }
-print_success() { echo -e "\033[32m[SUCCESS]\033[0m $1"; }
-print_error() { echo -e "\033[31m[ERROR]\033[0m $1"; }
-print_warning() { echo -e "\033[33m[WARNING]\033[0m $1"; }
-
-# --- Stack Configuration ---
-get_stack_config() {
-    # Ensure yq is installed
-    if ! command -v yq >/dev/null 2>&1; then
-        apt-get update -y >/dev/null 2>&1 || true
-        apt-get install -y yq >/dev/null 2>&1 || true
-    fi
-    
-    if [ ! -f "$STACKS_FILE" ]; then
-        print_error "Stacks file not found: $STACKS_FILE"
-        exit 1
-    fi
-    
-    CT_ID=$(yq -r ".stacks.$1.ct_id" "$STACKS_FILE")
-    CT_HOSTNAME=$(yq -r ".stacks.$1.hostname" "$STACKS_FILE")
-    
-    if [ -z "$CT_ID" ] || [ "$CT_ID" = "null" ]; then
-        print_error "Stack '$1' not found in $STACKS_FILE"
-        exit 1
-    fi
-}
-
-# --- Prompt for passphrase ---
-prompt_env_passphrase() {
-    local pass
-    echo -n "Enter encryption passphrase: " >&2
-    read -s pass
-    echo >&2
-    if [ -z "$pass" ]; then
-        print_error "Passphrase cannot be empty."
-        exit 1
-    fi
-    printf '%s' "$pass"
-}
+# --- Load Shared Functions ---
+source "$WORK_DIR/scripts/helper-functions.sh"
 
 # --- Encrypt function ---
 encrypt_container_env() {

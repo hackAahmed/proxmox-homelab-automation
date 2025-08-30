@@ -48,10 +48,13 @@ print_info "Downloading the latest scripts from the repository..."
 
 # List of files to download
 FILES_TO_DOWNLOAD=(
+    "scripts/helper-functions.sh"
     "scripts/main-menu.sh"
     "scripts/lxc-manager.sh"
     "scripts/deploy-stack.sh"
     "scripts/helper-menu.sh"
+    "scripts/gaming-menu.sh"
+    "scripts/game-manager.sh"
     "scripts/fail2ban-manager.sh"
     "scripts/encrypt-env.sh"
     "stacks.yaml"

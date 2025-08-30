@@ -2,11 +2,9 @@
 
 set -e
 
-# --- Generic Helper Functions ---
-press_enter_to_continue() {
-    echo
-    read -p "Press Enter to continue..."
-}
+# --- Load Shared Functions ---
+WORK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
+source "$WORK_DIR/scripts/helper-functions.sh"
 
 # --- Fail2ban Functions ---
 

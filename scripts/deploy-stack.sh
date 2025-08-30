@@ -10,51 +10,18 @@ STACK_NAME=$1
 WORK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
 REPO_BASE_URL="https://raw.githubusercontent.com/Yakrel/proxmox-homelab-automation/main"
 
+# --- Load Shared Functions ---
+source "$WORK_DIR/scripts/helper-functions.sh"
+
 # Global variables for monitoring setup
 PVE_MONITORING_PASSWORD=""
 ENV_ENC_NAME=".env.enc"    # Encrypted env filename expected in repo per stack
 ENV_DECRYPTED_PATH=""
 
-prompt_env_passphrase() {
-    local pass
-    while true; do
-        echo -n "Enter .env decryption passphrase: " >&2
-        read -s pass
-        echo >&2
-        if [ -z "$pass" ]; then
-            print_warning "Passphrase cannot be empty."
-        else
-            printf '%s' "$pass"  # Secure output without newline
-            return 0
-        fi
-    done
-}
+# Use shared prompt_env_passphrase function from helper-functions.sh
 
 prompt_pbs_admin_password() {
-    local pass confirm
-    while true; do
-        echo -n "Enter PBS admin password for root@pam (web interface): " >&2
-        read -s pass
-        echo >&2
-        if [ -z "$pass" ]; then
-            print_warning "Password cannot be empty."
-            continue
-        fi
-        if [ ${#pass} -lt 8 ]; then
-            print_warning "Password must be at least 8 characters long."
-            continue
-        fi
-        
-        echo -n "Confirm PBS admin password: " >&2
-        read -s confirm
-        echo >&2
-        if [ "$pass" = "$confirm" ]; then
-            printf '%s' "$pass"  # Secure output without newline
-            return 0
-        else
-            print_warning "Passwords do not match. Please try again."
-        fi
-    done
+    prompt_password "Enter PBS admin password for root@pam (web interface): " 8
 }
 
 decrypt_env_for_deploy() {
@@ -86,35 +53,9 @@ decrypt_env_for_deploy() {
     fi
 }
 
-# --- Helper Functions ---
-print_info() { echo -e "\033[36m[INFO]\033[0m $1"; }
-print_success() { echo -e "\033[32m[SUCCESS]\033[0m $1"; }
-print_error() { echo -e "\033[31m[ERROR]\033[0m $1"; }
-print_warning() { echo -e "\033[33m[WARNING]\033[0m $1"; }
+# --- Print functions now loaded from helper-functions.sh ---
 
-# --- Stack Configuration (YAML-driven only) ---
-get_stack_config() {
-    local stack=$1
-    local stacks_file="$WORK_DIR/stacks.yaml"
-    
-    # Ensure yq is installed only if missing (faster, less network usage)
-    if ! command -v yq >/dev/null 2>&1; then
-        apt-get update -y >/dev/null 2>&1 || true
-        apt-get install -y yq >/dev/null 2>&1 || true
-    fi
-    
-    if [ ! -f "$stacks_file" ]; then
-        print_error "Stacks file not found: $stacks_file. Ensure stacks.yaml is placed there."
-        exit 1
-    fi
-    
-    CT_ID=$(yq -r ".stacks.$stack.ct_id" "$stacks_file")
-    CT_HOSTNAME=$(yq -r ".stacks.$stack.hostname" "$stacks_file")
-    if [ -z "$CT_ID" ] || [ "$CT_ID" = "null" ]; then
-        print_error "Stack '$stack' not found or incomplete in $stacks_file"
-        exit 1
-    fi
-}
+# --- Stack Configuration now uses shared get_stack_config function ---
 
 # --- Step 1: Host Preparation ---
 

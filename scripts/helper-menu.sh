@@ -6,23 +6,13 @@ set -e
 
 WORK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
 
-# --- Generic Helper Functions ---
-
-ensure_packages() {
-    echo "[INFO] Ensuring packages '$*' are installed..."
-    apt-get update >/dev/null
-    apt-get install -y "$@"
-}
-
-press_enter_to_continue() {
-    echo
-    read -p "Press Enter to continue..."
-}
+# --- Load Shared Functions ---
+source "$WORK_DIR/scripts/helper-functions.sh"
 
 # --- Core Logic Functions ---
 
 run_configure_timezone() {
-    if [ "$(id -u)" -ne 0 ]; then echo "[ERROR] Must be run as root"; return 1; fi
+    require_root
     ensure_packages chrony
 
     echo "[INFO] Setting timezone to Europe/Istanbul..."

@@ -60,15 +60,18 @@ This is a shell-based automation system for deploying containerized services in 
 │   ├── main-menu.sh     # Interactive stack selection
 │   ├── deploy-stack.sh  # Stack deployment orchestrator  
 │   ├── lxc-manager.sh   # LXC container operations
-│   └── helper-menu.sh   # Additional utilities
+│   ├── helper-menu.sh   # Additional utilities
+│   ├── gaming-menu.sh   # Game server management
+│   ├── game-manager.sh  # Game server operations
+│   ├── encrypt-env.sh   # Environment encryption
+│   └── fail2ban-manager.sh # Fail2ban configuration
 ├── docker/              # Docker compose per stack
 │   ├── proxy/
 │   ├── media/
 │   ├── files/
 │   ├── webtools/
 │   ├── monitoring/
-│   ├── gameservers/
-│   └── backup/
+│   └── gameservers/
 ├── stacks.yaml         # Central configuration
 └── config/             # Service config templates
 ```

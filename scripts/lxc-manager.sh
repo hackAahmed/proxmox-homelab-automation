@@ -5,42 +5,21 @@ set -e
 
 STACK_NAME=$1
 WORK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
-STACKS_FILE="$WORK_DIR/stacks.yaml"
 
-print_info() { echo -e "\033[36m[INFO]\033[0m $1"; }
-print_success() { echo -e "\033[32m[SUCCESS]\033[0m $1"; }
-print_error() { echo -e "\033[31m[ERROR]\033[0m $1"; }
-print_warning() { echo -e "\033[33m[WARNING]\033[0m $1"; }
+# --- Load Shared Functions ---
+source "$WORK_DIR/scripts/helper-functions.sh"
 
-get_stack_config() {
-    # Ensure yq is installed only if missing (faster, less network usage)
-    if ! command -v yq >/dev/null 2>&1; then
-        apt-get update -y >/dev/null 2>&1 || true
-        apt-get install -y yq >/dev/null 2>&1 || true
-    fi
-    
-    if [ ! -f "$STACKS_FILE" ]; then
-        print_error "Stacks file not found: $STACKS_FILE. Ensure stacks.yaml is placed there."
-        exit 1
-    fi
-    CT_ID=$(yq -r ".stacks.$1.ct_id" "$STACKS_FILE")
-    CT_HOSTNAME=$(yq -r ".stacks.$1.hostname" "$STACKS_FILE")
-    CT_CORES=$(yq -r ".stacks.$1.cpu_cores" "$STACKS_FILE")
-    CT_RAM_MB=$(yq -r ".stacks.$1.memory_mb" "$STACKS_FILE")
-    CT_DISK_GB=$(yq -r ".stacks.$1.disk_gb" "$STACKS_FILE")
-    CT_IP_CIDR_BASE=$(yq -r ".network.ip_base" "$STACKS_FILE")
-    CT_GATEWAY_IP=$(yq -r ".network.gateway" "$STACKS_FILE")
-    CT_BRIDGE=$(yq -r ".network.bridge" "$STACKS_FILE")
-    STORAGE_POOL=$(yq -r ".storage.pool" "$STACKS_FILE")
-    ip_octet=$(yq -r ".stacks.$1.ip_octet" "$STACKS_FILE")
-    CT_IP_CIDR="$CT_IP_CIDR_BASE.$ip_octet/24"
-    if [ -z "$CT_ID" ] || [ "$CT_ID" = "null" ]; then
-        print_error "Stack '$1' not found or incomplete in $STACKS_FILE"
-        exit 1
-    fi
-}
-
+# Load stack configuration using shared function
 get_stack_config "$STACK_NAME"
+
+# Set local variables for compatibility with existing code
+CT_CORES="$CT_CPU_CORES"
+CT_RAM_MB="$CT_MEMORY_MB" 
+CT_DISK_GB="$CT_DISK_GB"
+CT_IP_CIDR_BASE="$NETWORK_IP_BASE"
+CT_GATEWAY_IP="$NETWORK_GATEWAY"
+CT_BRIDGE="$NETWORK_BRIDGE"
+CT_IP_CIDR="$CT_IP"
 
 # Choose template based on stack type
 if [ "$STACK_NAME" = "backup" ]; then

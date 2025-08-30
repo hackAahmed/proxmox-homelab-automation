@@ -59,13 +59,21 @@ Each service runs in its own LXC container with dedicated resources:
 ```
 ├── installer.sh           # Main entry point (downloads latest scripts)
 ├── scripts/               # Core deployment scripts
-│   ├── main-menu.sh      # Interactive menu
+│   ├── main-menu.sh      # Interactive main menu
 │   ├── deploy-stack.sh   # Stack deployment orchestrator
-│   └── lxc-manager.sh    # LXC container management
+│   ├── lxc-manager.sh    # LXC container management
+│   ├── helper-menu.sh    # Additional utility menu
+│   ├── gaming-menu.sh    # Game server selection menu
+│   ├── game-manager.sh   # Game server operations
+│   ├── encrypt-env.sh    # Environment file encryption
+│   └── fail2ban-manager.sh # Fail2ban configuration
 ├── docker/               # Docker compose files per stack
 │   ├── proxy/
 │   ├── media/
-│   └── ...
+│   ├── files/
+│   ├── webtools/
+│   ├── monitoring/
+│   └── gameservers/
 ├── stacks.yaml          # Central configuration
 └── config/              # Service configurations
 ```

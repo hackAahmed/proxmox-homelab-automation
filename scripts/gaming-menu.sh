@@ -7,14 +7,9 @@ set -e
 WORK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
 CONTAINER_ID="105"
 
-# --- Helper Functions ---
+# --- Load Shared Functions ---
 
 source "$WORK_DIR/scripts/helper-functions.sh"
-
-press_enter_to_continue() {
-    echo
-    read -p "Press Enter to continue..."
-}
 
 deploy_gaming_stack() {
     print_info "Deploying Gaming Stack (LXC $CONTAINER_ID)..."
@@ -24,14 +19,14 @@ deploy_gaming_stack() {
 
 manage_games() {
     # Check if container exists and is running
-    if ! pct status "$CONTAINER_ID" >/dev/null 2>&1; then
+    if ! check_container_exists "$CONTAINER_ID"; then
         print_error "Gaming stack container ($CONTAINER_ID) does not exist!"
         echo "Please deploy the gaming stack first."
         press_enter_to_continue
         return 1
     fi
     
-    if [[ "$(pct status "$CONTAINER_ID")" != "status: running" ]]; then
+    if ! check_container_running "$CONTAINER_ID"; then
         print_warning "Container $CONTAINER_ID is not running. Starting it..."
         pct start "$CONTAINER_ID"
         sleep 3
@@ -53,7 +48,7 @@ manage_games() {
 }
 
 show_gaming_status() {
-    if ! pct status "$CONTAINER_ID" >/dev/null 2>&1; then
+    if ! check_container_exists "$CONTAINER_ID"; then
         echo "Gaming Stack: NOT DEPLOYED"
         return
     fi
@@ -61,9 +56,9 @@ show_gaming_status() {
     echo "Gaming Stack Status:"
     echo "  Container: $(pct status "$CONTAINER_ID")"
     
-    if [[ "$(pct status "$CONTAINER_ID")" == "status: running" ]]; then
+    if check_container_running "$CONTAINER_ID"; then
         echo "  Current Game:"
-        pct exec "$CONTAINER_ID" -- /root/game-manager.sh status 2>/dev/null || echo "    Game manager not installed"
+        exec_in_container "$CONTAINER_ID" /root/game-manager.sh status 2>/dev/null || echo "    Game manager not installed"
     fi
     
     press_enter_to_continue
@@ -72,18 +67,11 @@ show_gaming_status() {
 # --- Main Menu ---
 
 while true; do
-    clear
-    echo "======================================="
-    echo "       Gaming Stack Manager"
-    echo "======================================="
-    echo
+    show_menu_header "Gaming Stack Manager"
     echo "   1) Deploy Gaming Stack (LXC $CONTAINER_ID)"
     echo "   2) Manage Game Servers"
     echo "   3) Show Gaming Status"
-    echo "---------------------------------------"
-    echo "   b) Back to Main Menu"
-    echo "   q) Quit"
-    echo
+    show_menu_footer
     read -p "   Enter your choice: " choice
 
     case $choice in
