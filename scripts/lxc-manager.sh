@@ -12,15 +12,6 @@ source "$WORK_DIR/scripts/helper-functions.sh"
 # Load stack configuration using shared function
 get_stack_config "$STACK_NAME"
 
-# Set local variables for compatibility with existing code
-CT_CORES="$CT_CPU_CORES"
-CT_RAM_MB="$CT_MEMORY_MB" 
-CT_DISK_GB="$CT_DISK_GB"
-CT_IP_CIDR_BASE="$NETWORK_IP_BASE"
-CT_GATEWAY_IP="$NETWORK_GATEWAY"
-CT_BRIDGE="$NETWORK_BRIDGE"
-CT_IP_CIDR="$CT_IP"
-
 # Choose template based on stack type
 if [ "$STACK_NAME" = "backup" ]; then
     print_info "Locating latest Debian template for PBS..."
@@ -60,11 +51,11 @@ print_info "Creating LXC ($CT_ID) $CT_HOSTNAME ..."
 pct create "$CT_ID" "$LATEST_TEMPLATE" \
     --hostname "$CT_HOSTNAME" \
     --storage "$STORAGE_POOL" \
-    --cores $CT_CORES \
-    --memory $CT_RAM_MB \
+    --cores $CT_CPU_CORES \
+    --memory $CT_MEMORY_MB \
     --swap 0 \
     --features keyctl=1,nesting=1 \
-    --net0 name=eth0,bridge=$CT_BRIDGE,ip=$CT_IP_CIDR,gw=$CT_GATEWAY_IP \
+    --net0 name=eth0,bridge=$NETWORK_BRIDGE,ip=$CT_IP/24,gw=$NETWORK_GATEWAY \
     --onboot 1 \
     --unprivileged 1 \
     --rootfs ${STORAGE_POOL}:$CT_DISK_GB
